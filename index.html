@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh_CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Large Table4</title>
+  <style>
+    .table-content {
+      height: 200px;
+      overflow:auto;
+      position: relative;
+    }
+    .table {
+      position: absolute;
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+      border-spacing: 0px;
+    }
+    .table .row {
+      box-sizing: border-box;
+      height: 30px;
+    }
+    /*高度占位元素*/
+    .table-height {
+      float:left;
+      width: 1px;
+    }
+ 
+    .table .row:hover {
+      background: #ddd;
+    }
+    .table .row .item {
+      padding: 0;
+      white-space: nowrap;
+      /* overflow: hidden; 严重影响性能*/
+      /* text-overflow: ellipsis; */
+      border: 1px solid #ddd;
+    }
+    .loading{
+      --width: 50%;
+      height: 5px;
+      width: var(--width);
+      background-color: cadetblue;
+    }
+  </style>
+</head>
+ 
+<body>
+  <div id="tableContent" class="table-content">
+    <div class="table-height"></div> <!--高度占位元素-->
+    <!-- <table class="table" id="table"></table> -->
+  </div>
+  <div class="loading"></div>
+</body>
+<script>
+  console.time()
+  let LINE_HEIGHT = 30;
+  const PAGE_SIZE = 200;
+  const ROWS = 10000;
+  const AUTO_LOAD_MS = 20; // 自动加载间隔ms 
+  const PRELOAD_PAGES = 1; // 预加载页数
+  const ROW_TEMP = [{ type: 'id' }, '王小虎', '28', '170cm', '80kg', '浙江省xxxxxx有限公司', { type: 'button', label: '详情' }];
+  let LOADED_INDEX = new Set(); // 存已经加载的页
+  const TOTAL_PAGES = Math.floor(ROWS / PAGE_SIZE); // 总页数
+ 
+  let tableContent = document.querySelector("#tableContent");
+  document.querySelector('.table-height').style = 'height:' + LINE_HEIGHT * ROWS + 'px';
+ 
+  window.onload = function(){
+    tableContent.addEventListener('scroll', scrollEvent)
+    autoLoadData() // init page
+  }
+
+
+  /**找到未加载的页 */
+  function findUnloadPage(pageIndex) {
+    let arr = [];
+    for (let i = pageIndex; i <= pageIndex + PRELOAD_PAGES && i < TOTAL_PAGES; i++) {
+      if (!LOADED_INDEX.has(i)) arr.push(i);
+    }
+    return arr;
+  }
+  /**
+   * 从第几条数据开始加载
+   * @param startIndex 开始加载的数据index（通过scrollTop/height得出
+   */
+  function loadPage(pageIndex) {
+    if (pageIndex > TOTAL_PAGES) return;
+    let unLoadedPages = findUnloadPage(pageIndex);
+    if (!unLoadedPages.length) return;
+    unLoadedPages.forEach((unLoadedPage) => {
+      let start = unLoadedPage * PAGE_SIZE;
+      let end = (unLoadedPage + 1) * PAGE_SIZE;
+      LOADED_INDEX.add(unLoadedPage); // 记录已加载的
+      let fgmt = loadRowsRange(start, end);
+      tableContent.appendChild(fgmt);
+      if(unLoadedPage == 0){
+        let row = document.querySelector('.row');
+        LINE_HEIGHT = parseFloat(getComputedStyle(row).height); // 计算出实际高度
+      }
+    })
+  }
+ 
+  /**
+   * 加载数据区间
+   * @param {Number} start 开始index
+   * @param {Number} end   结束index
+   * @return {DocumentFragement}
+   */
+  function loadRowsRange(start, end) {
+    let fgmt = document.createDocumentFragment();
+    let table = document.createElement('table');
+    table.classList.add('table');
+    table.style.top = start * LINE_HEIGHT + 'px';
+    for (let i = start; i < end; i++) { // row
+      let row = document.createElement('tr');
+      row.className = 'row';
+ 
+      for (let j = 0; j < ROW_TEMP.length; j++) { // column
+        let item = ROW_TEMP[j];
+        let td = document.createElement('td');
+        td.className = 'item';
+        if (typeof item == 'string') {
+          td.textContent = ROW_TEMP[j];
+        } else {
+          if (item.type == 'id') {
+            td.textContent = i;
+          } else if (item.type == 'button') {
+            let btn = document.createElement('button');
+            btn.textContent = item.label;
+            td.append(btn);
+          }
+        }
+        row.appendChild(td);
+      }
+      table.appendChild(row);
+    }
+    fgmt.appendChild(table);
+    return fgmt;
+  }
+ 
+  let debunceTimeout = null; // 防抖
+  function scrollEvent(e) {
+    let pageIndex = Math.floor(e.target.scrollTop / (PAGE_SIZE * LINE_HEIGHT));
+    // console.log(pageIndex);
+    if (debunceTimeout) {
+      clearTimeout(debunceTimeout);
+    }
+    debunceTimeout = setTimeout(() => {
+      loadPage(pageIndex);
+      // console.log(LOADED_INDEX);
+    }, AUTO_LOAD_MS);
+  }
+ 
+  
+  /*auto load data*/
+  function autoLoadData(){
+    let pageIndex = 0;
+    let loading = document.querySelector('.loading');
+    let interval = setInterval(() => {
+      // console.log(pageIndex);
+      if(pageIndex >= TOTAL_PAGES){ // fininsh load all data
+        clearInterval(interval);
+        tableContent.removeEventListener('scroll', scrollEvent); // remove scroll listener to improve performance
+        LOADED_INDEX = null; // try to gc
+      }
+      loading.style.setProperty('--width', pageIndex/TOTAL_PAGES * 100 + '%');
+      loadPage(pageIndex++);
+    }, 100)
+  }
+ 
+  console.timeEnd()
+ 
+ 
+</script>
+ 
+</html>
