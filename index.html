@@ -5,33 +5,49 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Large Table4</title>
   <style>
-    .table-content {
-      height: 200px;
+    *{
+      box-sizing: border-box;
+    }
+    table,th,td{
+      padding: 0 5px;
+    }
+    .table-header{
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+      transform:translateY(1px);
+    }
+    .table-header th {
+      border:1px solid #ddd;
+    }
+    .table-body {
+      height: 500px;
       overflow:auto;
       position: relative;
     }
-    .table {
+    .table-body-item {
       position: absolute;
       width: 100%;
       table-layout: fixed;
       border-collapse: collapse;
       border-spacing: 0px;
     }
-    .table .row {
+   
+    .table-body-item .row {
       box-sizing: border-box;
       height: 30px;
     }
     /*高度占位元素*/
-    .table-height {
+    .table-body-height {
       float:left;
       width: 1px;
     }
  
-    .table .row:hover {
+    .table-body-item .row:hover {
       background: #ddd;
     }
-    .table .row .item {
-      padding: 0;
+    .table-body-item .row .item {
+      /* padding: 0; */
       white-space: nowrap;
       /* overflow: hidden; 严重影响性能*/
       /* text-overflow: ellipsis; */
@@ -47,9 +63,25 @@
 </head>
  
 <body>
-  <div id="tableContent" class="table-content">
-    <div class="table-height"></div> <!--高度占位元素-->
-    <!-- <table class="table" id="table"></table> -->
+  <div class="big-table">
+    <table class="table-header">
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Name</th>
+          <th>Age</th>
+          <th>Height</th>
+          <th>Weight</th>
+          <th>Address</th>
+          <th>Operation</th>
+          <th></th>
+        </tr>
+      </thead>
+    </table>
+    <div id="tableBody" class="table-body">
+      <div class="table-body-height"></div> <!--高度占位元素-->
+      <!-- <table class="table" id="table"></table> -->
+    </div>
   </div>
   <div class="loading"></div>
 </body>
@@ -64,12 +96,24 @@
   let LOADED_INDEX = new Set(); // 存已经加载的页
   const TOTAL_PAGES = Math.floor(ROWS / PAGE_SIZE); // 总页数
  
-  let tableContent = document.querySelector("#tableContent");
-  document.querySelector('.table-height').style = 'height:' + LINE_HEIGHT * ROWS + 'px';
+  let tableBody = document.querySelector("#tableBody");
+  document.querySelector('.table-body-height').style = 'height:' + LINE_HEIGHT * ROWS + 'px';
  
   window.onload = function(){
-    tableContent.addEventListener('scroll', scrollEvent)
-    autoLoadData() // init page
+    tableBody.addEventListener('scroll', scrollEvent);
+    autoLoadData(); // init page
+    calcScrollBarWidth();
+    resizeListener();
+  }
+
+  /*浏览器大小改变时触发*/
+  function resizeListener(){
+    window.addEventListener('resize',calcScrollBarWidth);
+  }
+  function calcScrollBarWidth(){
+    let scrollBarWidth = tableBody.offsetWidth - tableBody.clientWidth;
+    let lastTh = document.querySelector('.table-header th:last-child');
+    lastTh.style.width = scrollBarWidth + 'px';
   }
 
 
@@ -94,7 +138,7 @@
       let end = (unLoadedPage + 1) * PAGE_SIZE;
       LOADED_INDEX.add(unLoadedPage); // 记录已加载的
       let fgmt = loadRowsRange(start, end);
-      tableContent.appendChild(fgmt);
+      tableBody.appendChild(fgmt);
       if(unLoadedPage == 0){
         let row = document.querySelector('.row');
         LINE_HEIGHT = parseFloat(getComputedStyle(row).height); // 计算出实际高度
@@ -111,7 +155,7 @@
   function loadRowsRange(start, end) {
     let fgmt = document.createDocumentFragment();
     let table = document.createElement('table');
-    table.classList.add('table');
+    table.classList.add('table-body-item');
     table.style.top = start * LINE_HEIGHT + 'px';
     for (let i = start; i < end; i++) { // row
       let row = document.createElement('tr');
@@ -162,7 +206,7 @@
       // console.log(pageIndex);
       if(pageIndex >= TOTAL_PAGES){ // fininsh load all data
         clearInterval(interval);
-        tableContent.removeEventListener('scroll', scrollEvent); // remove scroll listener to improve performance
+        tableBody.removeEventListener('scroll', scrollEvent); // remove scroll listener to improve performance
         LOADED_INDEX = null; // try to gc
       }
       loading.style.setProperty('--width', pageIndex/TOTAL_PAGES * 100 + '%');
